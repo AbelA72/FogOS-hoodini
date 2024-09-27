@@ -99,6 +99,8 @@ copy_directory(const char *src, const char *dest, int verbose)
 		printf("ls: path too long\n");
 		exit(1);
 	}
+	
+
 	    strcpy(buf, src);
 	    p = buf+strlen(buf);
 	    *p++ = '/';
@@ -106,7 +108,11 @@ copy_directory(const char *src, const char *dest, int verbose)
 	      if(de.inum == 0)
 	        continue;
 	      memmove(p, de.name, DIRSIZ);
-	      p[DIRSIZ] = 0;
+	      if (de.name[0] == '.') {
+		      continue;
+	      }
+	      printf("-> %s\n", de.name);
+	      printf("-> %s\n", buf);
 	      if(stat(buf, &st) < 0){
 	        printf("ls: cannot stat %s\n", buf);
 	        continue;
@@ -114,15 +120,15 @@ copy_directory(const char *src, const char *dest, int verbose)
 		  if (stat(dest, &desti) < 0) {
 		          fprintf(2, "cp: cannot stat %s\n", src);
 		          exit(1);
-		   }
+		  }
 
 		   
 	      if (desti.type == T_DIR){
-	        strcpy(buff, buf);
-	        strcpy(buff, p + 1);
-	        printf("new dest %s", buff);
-	      	copy_file(p, buff, verbose);
+		      printf("copying: %s\n", buf);
+	      	copy_file(buf, buff, verbose);
 	      }
+
+	      p[DIRSIZ] = 0;
 	      
 	    }
 
