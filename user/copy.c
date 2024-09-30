@@ -7,19 +7,24 @@
 
 char buffer[2048];
 
-// Function to copy a file
+/**
+* Copies a file to a dest
+* @param  source      file we want to copy
+* @param  destination where we want the copied to go
+* @param  verbose     flag for checking if we want the info for how much is copied, from where and to where
+**/
 void 
 copy_file(const char *source, const char *destination, int verbose) 
 {
 
 	int src, dest;
 
-
+	// opens source
 	if ((src = open(source, O_RDONLY)) < 0) {
 		fprintf(2, "cp: unable to open source file: %s\n", source);
 		exit(1);
 	}
-
+	// opens destination
 	if ((dest = open(destination, O_WRONLY | O_CREATE | O_TRUNC)) < 0) {
 		fprintf(2, "cp: unable to open destination file: %s\n", destination);
 		close(src);
@@ -30,23 +35,25 @@ copy_file(const char *source, const char *destination, int verbose)
     uint copied = 0;
     int totalSize = sizeof(source);
 
+	// reads bytes into buffer and prints how much is in the buffer
     while ((bytesRead = read(src, buffer, sizeof(buffer))) > 0) {
         write(dest, buffer, bytesRead);
+        
+        printf("\nCopying: %d bytes out of total\n", bytesRead/totalSize * 100);
+
         copied += bytesRead;
-        // Calculates and displays progress
-		if (totalSize > 0) {
-           int progress = (int)copied / totalSize * 100;
-           printf("\nCopying: %d%\n", progress);
-       	}
+        
                         
             
     }
-
+	// handles the verbose flag
+	// tells the source and dest file 
+	// prints total bytes
     if (verbose) {
         printf("Copied file from '%s' to '%s'\n", source, destination);
         printf("Copied %d bytes\n", copied);
     }
-
+	// closes fd's
 	close(src);
 	close(dest);
 
@@ -56,38 +63,42 @@ copy_file(const char *source, const char *destination, int verbose)
 
 
 
-// Function to recursively copy a directory
+/**
+* Recursively copies a directory to where you want
+* @param  src     directory we want to copy
+* @param  dest    what we want the copied directory to be
+* @param  verbose flag for checking if we want the info for how much is copied, from where and to where
+**/
 void 
 copy_directory(const char *src, const char *dest, int verbose) 
 {
 
-	char buf[512], *p;
-	char buff[512];
+	char buf[512], *p, *d;
+	char dest_buf[512];
 	int src_fd;
 	struct dirent de;
 	struct stat st;
-	struct stat desti;
 
-	int progress = 0;
 	
-
+	// stats source
 	if (stat(src, &st) < 0) {
 		fprintf(2, "cp: cannot stat %s\n", src);
 	    exit(1);
 	}
 
-
-	// Create destination directory
+	// makes directory for destination
 	if (mkdir(dest) < 0) {
 		fprintf(2, "cp: unable to create destination directory: %s\n", dest);
 		exit(1);
 	}
 
+	// opens source
 	if ((src_fd = open(src, O_RDONLY)) < 0) {
 		fprintf(2, "cp: unable to open source directory: %s\n", src);
 		exit(1);
 	}
 
+	// stats source fd
 	if(fstat(src_fd, &st) < 0){
 		    fprintf(2, "ls: cannot stat %s\n", src);
 		    close(src_fd);
@@ -100,46 +111,47 @@ copy_directory(const char *src, const char *dest, int verbose)
 		exit(1);
 	}
 	
-
+		// sets source path
 	    strcpy(buf, src);
 	    p = buf+strlen(buf);
 	    *p++ = '/';
+
+		// sets dest path
+	    strcpy(dest_buf, dest);  
+	    d = dest_buf + strlen(dest_buf);  
+	    *d++ = '/'; 
+
+	    
 	    while(read(src_fd, &de, sizeof(de)) == sizeof(de)){
-	      if(de.inum == 0)
+	      if(de.inum == 0){
 	        continue;
+		  }
+	      // updates source path  
 	      memmove(p, de.name, DIRSIZ);
+	      p[DIRSIZ] = 0;
+
+
+	      // updates dest path  	      
 	      if (de.name[0] == '.') {
 		      continue;
 	      }
-	      printf("-> %s\n", de.name);
-	      printf("-> %s\n", buf);
+	      
+	      memmove(d, de.name, DIRSIZ); 
+	      d[DIRSIZ] = 0;
+	          
+	      // stats buff
 	      if(stat(buf, &st) < 0){
 	        printf("ls: cannot stat %s\n", buf);
 	        continue;
 	      }
-		  if (stat(dest, &desti) < 0) {
-		          fprintf(2, "cp: cannot stat %s\n", src);
-		          exit(1);
-		  }
+	      // calls copy on file
+	      copy_file(buf, dest_buf, verbose);
 
-		   
-	      if (desti.type == T_DIR){
-		      printf("copying: %s\n", buf);
-	      	copy_file(buf, buff, verbose);
-	      }
-
-	      p[DIRSIZ] = 0;
 	      
 	    }
 
-	
-	if (verbose) {
-		printf("Copied directory from '%s' to '%s'\n", src, dest);
-			printf("Copied %d bytes\n", progress);
-	}
-	
 
-	
+	// closes source
 	close(src_fd);
 }
 
@@ -150,18 +162,18 @@ copy_directory(const char *src, const char *dest, int verbose)
  int
  main(int argc, char *argv[])
  {
-
+	// checks arg number
  	if (argc < 3){
  		fprintf(2, "Usage: /copy <-r> <-v> file_source file_destination\n");
  		exit(1);
  	} 
-
+	// sets params
     int recursive = 0;
     int verbose = 0;
     char *src= 0;
     char *dest = 0;
 
-	// Process command-line arguments
+	// processes command-line arguments
     for (int i = 1; i < argc; i++) {
         if (strcmp(argv[i], "-v") == 0) {
             verbose = 1;
@@ -182,7 +194,7 @@ copy_directory(const char *src, const char *dest, int verbose)
         exit(1);
     }
 
-    // Check if the source is a directory and if the -r flag was provided
+    // checks if the source is a directory and if the -r flag was provided
     if (st.type == T_DIR) {
         if (recursive) {
         	copy_directory(src, dest, verbose);
@@ -193,7 +205,6 @@ copy_directory(const char *src, const char *dest, int verbose)
         }
     } 
     else {
-    	// Source is a file, just copy the file
         copy_file(src, dest, verbose);
     }
 
