@@ -5,7 +5,7 @@
 #include "user/user.h"
 
 
-char buffer[2048];
+char buffer[512];
 
 /**
 * Copies a file to a dest
@@ -33,14 +33,10 @@ copy_file(const char *source, const char *destination, int verbose)
 
     uint bytesRead;
     uint copied = 0;
-    int totalSize = sizeof(source);
 
 	// reads bytes into buffer and prints how much is in the buffer
     while ((bytesRead = read(src, buffer, sizeof(buffer))) > 0) {
         write(dest, buffer, bytesRead);
-        
-        printf("\nCopying: %d bytes out of total\n", bytesRead/totalSize * 100);
-
         copied += bytesRead;
         
                         
@@ -82,32 +78,32 @@ copy_directory(const char *src, const char *dest, int verbose)
 	
 	// stats source
 	if (stat(src, &st) < 0) {
-		fprintf(2, "cp: cannot stat %s\n", src);
+		fprintf(2, "copy: cannot stat %s\n", src);
 	    exit(1);
 	}
 
 	// makes directory for destination
 	if (mkdir(dest) < 0) {
-		fprintf(2, "cp: unable to create destination directory: %s\n", dest);
+		fprintf(2, "copy: unable to create destination directory: %s\n", dest);
 		exit(1);
 	}
 
 	// opens source
 	if ((src_fd = open(src, O_RDONLY)) < 0) {
-		fprintf(2, "cp: unable to open source directory: %s\n", src);
+		fprintf(2, "copy: unable to open source directory: %s\n", src);
 		exit(1);
 	}
 
 	// stats source fd
 	if(fstat(src_fd, &st) < 0){
-		    fprintf(2, "ls: cannot stat %s\n", src);
+		    fprintf(2, "copy: cannot stat %s\n", src);
 		    close(src_fd);
 		    return;
 	}
 
 
 	if(strlen(src) + 1 + DIRSIZ + 1 > sizeof buf){
-		printf("ls: path too long\n");
+		printf("copy: path too long\n");
 		exit(1);
 	}
 	
@@ -141,12 +137,25 @@ copy_directory(const char *src, const char *dest, int verbose)
 	          
 	      // stats buff
 	      if(stat(buf, &st) < 0){
-	        printf("ls: cannot stat %s\n", buf);
+	        printf("copy: cannot stat %s\n", buf);
 	        continue;
 	      }
-	      // calls copy on file
-	      copy_file(buf, dest_buf, verbose);
-
+	      // checks if the entry is a directory
+		  if (st.type == T_DIR) {
+			// recursively copies subdirectory
+			if (verbose) {
+				printf("Copying directory %s to %s\n", buf, dest_buf);
+			}
+			mkdir(dest_buf);  
+			copy_directory(buf, dest_buf, verbose);
+				
+		  } else {
+				// copies regular file
+				if (verbose) {
+					printf("Copying file %s to %s\n", buf, dest_buf);
+				}
+				copy_file(buf, dest_buf, verbose);
+		  }  
 	      
 	    }
 
@@ -190,7 +199,7 @@ copy_directory(const char *src, const char *dest, int verbose)
 
 	struct stat st;
     if (stat(src, &st) < 0) {
-        fprintf(2, "cp: cannot stat %s\n", src);
+        fprintf(2, "copy: cannot stat %s\n", src);
         exit(1);
     }
 
@@ -200,7 +209,7 @@ copy_directory(const char *src, const char *dest, int verbose)
         	copy_directory(src, dest, verbose);
         } 
         else {
-            fprintf(2, "cp: %s is a directory, use -r to copy directories\n", src);
+            fprintf(2, "copy: %s is a directory, use -r to copy directories\n", src);
             exit(1);
         }
     } 
